@@ -1,0 +1,15 @@
+server:
+  host: 0.0.0.0
+  port: 8080
+  read_timeout: 15s
+  write_timeout: 15s
+
+storage:
+  type: local
+  base_dir: ./uploads
+  # s3_bucket: ""
+  # s3_region: us-east-1
+  # s3_presign_expiry: 15m
+
+log:
+  level: info
