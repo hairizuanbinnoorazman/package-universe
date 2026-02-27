@@ -1,8 +1,8 @@
 server:
   host: 0.0.0.0
   port: 8080
-  read_timeout: 15s
-  write_timeout: 15s
+  read_timeout: 600s
+  write_timeout: 600s
 
 storage:
   type: local
