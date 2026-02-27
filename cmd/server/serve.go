@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/hairizuanbinnoorazman/package-universe/cmd/server/handlers"
 	"github.com/hairizuanbinnoorazman/package-universe/logger"
+	"github.com/hairizuanbinnoorazman/package-universe/oci"
 	"github.com/hairizuanbinnoorazman/package-universe/storage"
 	"github.com/spf13/cobra"
 )
@@ -69,15 +70,45 @@ func runServer(cmd *cobra.Command, args []string) error {
 	}
 	log.Info(ctx, "storage initialized", logFields)
 
-	// Keep a reference to storage for future use
-	_ = blobStorage
-
 	// Setup router
 	router := mux.NewRouter()
 
 	// Health and readiness endpoints
 	router.HandleFunc("/healthz", handlers.HealthHandler).Methods("GET")
 	router.HandleFunc("/readyz", handlers.ReadyHandler).Methods("GET")
+
+	// OCI container registry endpoints
+	if cfg.Registry.Enabled {
+		sessionMgr := oci.NewSessionManager(cfg.Registry.UploadSessionTimeout)
+		ociStorage := oci.NewOCIStorage(blobStorage, sessionMgr)
+		ociHandler := &handlers.OCIHandler{
+			Storage: ociStorage,
+			Logger:  log,
+		}
+
+		log.Info(ctx, "OCI container registry enabled", nil)
+
+		// /v2/ base route
+		router.HandleFunc("/v2/", ociHandler.V2Check).Methods("GET")
+
+		// Blob upload routes (must be before blob routes since they have longer paths)
+		router.HandleFunc("/v2/{name:.+}/blobs/uploads/", ociHandler.InitiateBlobUpload).Methods("POST")
+		router.HandleFunc("/v2/{name:.+}/blobs/uploads/{uuid}", ociHandler.PatchBlobUpload).Methods("PATCH")
+		router.HandleFunc("/v2/{name:.+}/blobs/uploads/{uuid}", ociHandler.CompleteBlobUpload).Methods("PUT")
+		router.HandleFunc("/v2/{name:.+}/blobs/uploads/{uuid}", ociHandler.CancelBlobUpload).Methods("DELETE")
+
+		// Blob routes
+		router.HandleFunc("/v2/{name:.+}/blobs/{digest}", ociHandler.HeadBlob).Methods("HEAD")
+		router.HandleFunc("/v2/{name:.+}/blobs/{digest}", ociHandler.GetBlob).Methods("GET")
+
+		// Manifest routes
+		router.HandleFunc("/v2/{name:.+}/manifests/{reference}", ociHandler.HeadManifest).Methods("HEAD")
+		router.HandleFunc("/v2/{name:.+}/manifests/{reference}", ociHandler.GetManifest).Methods("GET")
+		router.HandleFunc("/v2/{name:.+}/manifests/{reference}", ociHandler.PutManifest).Methods("PUT")
+
+		// Tags route
+		router.HandleFunc("/v2/{name:.+}/tags/list", ociHandler.TagsList).Methods("GET")
+	}
 
 	// Create HTTP server
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)

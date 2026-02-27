@@ -1,8 +1,8 @@
 server:
   host: 0.0.0.0
   port: 8080
-  read_timeout: 15s
-  write_timeout: 15s
+  read_timeout: 600s
+  write_timeout: 600s
 
 storage:
   type: local
@@ -10,6 +10,12 @@ storage:
   # s3_bucket: ""
   # s3_region: us-east-1
   # s3_presign_expiry: 15m
+
+registry:
+  enabled: true
+  upload_session_timeout: 30m
+  max_manifest_size: 10485760    # 10MB
+  max_chunk_size: 104857600      # 100MB
 
 log:
   level: info

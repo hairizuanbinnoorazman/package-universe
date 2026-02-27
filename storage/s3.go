@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -170,6 +171,49 @@ func (s *S3Storage) GetURL(ctx context.Context, path string) (string, error) {
 	}
 
 	return presignResult.URL, nil
+}
+
+// List returns the names of objects with the given prefix using S3 ListObjectsV2 with delimiter.
+func (s *S3Storage) List(ctx context.Context, prefix string) ([]string, error) {
+	if err := validatePath(prefix); err != nil {
+		return nil, err
+	}
+
+	cleanPrefix := filepath.ToSlash(filepath.Clean(prefix))
+	if !strings.HasSuffix(cleanPrefix, "/") {
+		cleanPrefix += "/"
+	}
+
+	delimiter := "/"
+	result, err := s.client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
+		Bucket:    aws.String(s.bucket),
+		Prefix:    aws.String(cleanPrefix),
+		Delimiter: &delimiter,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list S3 objects: %w", err)
+	}
+
+	var names []string
+	for _, prefix := range result.CommonPrefixes {
+		if prefix.Prefix != nil {
+			name := strings.TrimPrefix(*prefix.Prefix, cleanPrefix)
+			name = strings.TrimSuffix(name, "/")
+			if name != "" {
+				names = append(names, name)
+			}
+		}
+	}
+	for _, obj := range result.Contents {
+		if obj.Key != nil {
+			name := strings.TrimPrefix(*obj.Key, cleanPrefix)
+			if name != "" {
+				names = append(names, name)
+			}
+		}
+	}
+
+	return names, nil
 }
 
 // validatePath validates the path to prevent path traversal attacks.

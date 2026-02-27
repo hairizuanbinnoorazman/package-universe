@@ -25,6 +25,11 @@ type BlobStorage interface {
 	// GetURL returns a URL for accessing the data at the specified path.
 	// For local storage, this returns a file:// URL or relative path.
 	GetURL(ctx context.Context, path string) (string, error)
+
+	// List returns the names of objects that have the given prefix.
+	// For local storage, this lists files under the prefix directory.
+	// For S3, this uses ListObjectsV2 with the prefix.
+	List(ctx context.Context, prefix string) ([]string, error)
 }
 
 // NewBlobStorage creates a BlobStorage implementation based on configuration.

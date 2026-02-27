@@ -10,9 +10,18 @@ import (
 
 // Config holds all application configuration.
 type Config struct {
-	Server  ServerConfig
-	Storage StorageConfig
-	Log     LogConfig
+	Server   ServerConfig
+	Storage  StorageConfig
+	Log      LogConfig
+	Registry RegistryConfig
+}
+
+// RegistryConfig holds OCI container registry configuration.
+type RegistryConfig struct {
+	Enabled               bool
+	UploadSessionTimeout  time.Duration
+	MaxManifestSize       int64
+	MaxChunkSize          int64
 }
 
 // ServerConfig holds HTTP server configuration.
@@ -69,6 +78,11 @@ func LoadConfig(configPath string) (*Config, error) {
 
 	v.SetDefault("log.level", "info")
 
+	v.SetDefault("registry.enabled", true)
+	v.SetDefault("registry.upload_session_timeout", "30m")
+	v.SetDefault("registry.max_manifest_size", 10*1024*1024)  // 10MB
+	v.SetDefault("registry.max_chunk_size", 100*1024*1024)    // 100MB
+
 	// Read config file
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -92,6 +106,11 @@ func LoadConfig(configPath string) (*Config, error) {
 	config.Storage.S3PresignExpiry = v.GetDuration("storage.s3_presign_expiry")
 
 	config.Log.Level = v.GetString("log.level")
+
+	config.Registry.Enabled = v.GetBool("registry.enabled")
+	config.Registry.UploadSessionTimeout = v.GetDuration("registry.upload_session_timeout")
+	config.Registry.MaxManifestSize = v.GetInt64("registry.max_manifest_size")
+	config.Registry.MaxChunkSize = v.GetInt64("registry.max_chunk_size")
 
 	return &config, nil
 }
