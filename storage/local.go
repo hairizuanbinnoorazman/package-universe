@@ -143,6 +143,32 @@ func (s *LocalStorage) GetURL(ctx context.Context, path string) (string, error) 
 	return fullPath, nil
 }
 
+// List returns the names of objects under the given prefix directory.
+func (s *LocalStorage) List(ctx context.Context, prefix string) ([]string, error) {
+	if prefix == "" {
+		return nil, fmt.Errorf("%w: prefix cannot be empty", ErrInvalidPath)
+	}
+
+	fullPath, err := s.validateAndJoinPath(prefix)
+	if err != nil {
+		return nil, err
+	}
+
+	entries, err := os.ReadDir(fullPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return []string{}, nil
+		}
+		return nil, fmt.Errorf("failed to list directory: %w", err)
+	}
+
+	var names []string
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	return names, nil
+}
+
 // validateAndJoinPath validates the path and joins it with the base directory.
 // It prevents path traversal attacks by ensuring the final path is within baseDir.
 func (s *LocalStorage) validateAndJoinPath(path string) (string, error) {

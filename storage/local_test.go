@@ -321,6 +321,47 @@ func TestLocalStorage_GetURL(t *testing.T) {
 	})
 }
 
+func TestLocalStorage_List(t *testing.T) {
+	ctx := context.Background()
+	baseDir := t.TempDir()
+	storage, err := NewLocalStorage(baseDir)
+	if err != nil {
+		t.Fatalf("failed to create storage: %v", err)
+	}
+
+	// Upload files in a directory structure
+	storage.Upload(ctx, "mydir/file1.txt", strings.NewReader("content1"))
+	storage.Upload(ctx, "mydir/file2.txt", strings.NewReader("content2"))
+	storage.Upload(ctx, "mydir/subdir/file3.txt", strings.NewReader("content3"))
+
+	t.Run("list existing directory", func(t *testing.T) {
+		names, err := storage.List(ctx, "mydir")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(names) != 3 {
+			t.Errorf("expected 3 entries, got %d: %v", len(names), names)
+		}
+	})
+
+	t.Run("list non-existent directory", func(t *testing.T) {
+		names, err := storage.List(ctx, "nonexistent")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(names) != 0 {
+			t.Errorf("expected 0 entries, got %d", len(names))
+		}
+	})
+
+	t.Run("empty prefix", func(t *testing.T) {
+		_, err := storage.List(ctx, "")
+		if err == nil {
+			t.Error("expected error but got none")
+		}
+	})
+}
+
 func TestLocalStorage_UploadLargeFile(t *testing.T) {
 	ctx := context.Background()
 	baseDir := t.TempDir()

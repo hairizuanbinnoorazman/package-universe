@@ -11,5 +11,11 @@ storage:
   # s3_region: us-east-1
   # s3_presign_expiry: 15m
 
+registry:
+  enabled: true
+  upload_session_timeout: 30m
+  max_manifest_size: 10485760    # 10MB
+  max_chunk_size: 104857600      # 100MB
+
 log:
   level: info
